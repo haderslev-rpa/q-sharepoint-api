@@ -1,2 +1,2 @@
-# q-prisme365-api
-API til Cura
+# q-sharepoint-api
+API til sharepoint
