@@ -1,6 +1,8 @@
 import os
 import datetime
 
+from q_sharepoint_api.sp_site_context import get_site  # ✅ NY (lille)
+
 
 def _generate_folder_name():
     now = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
@@ -13,7 +15,9 @@ def upload_temp_files(client, site_name, base_path, files):
     Opret temp mappe → upload filer → returner URLs
     """
 
-    site_id = client.get_site_id(site_name)
+    # ✅ ENESTE ÆNDRING:
+    site_id = get_site(site_name).site_id
+
     drive_id = client.get_drive_id(site_id)
 
     folder_name = _generate_folder_name()

@@ -26,11 +26,12 @@ def get_client():
         return _client
 
     auth = SharePointAuth(
-        tenant_id=_cfg["tenant_id"],
-        client_id=_cfg["client_id"],
-        client_secret=_cred.password,
-        scope=_cfg.get("scope", "https://graph.microsoft.com/.default")
-    )
+    tenant_id=_cfg["tenant_id"],
+    tenant_name=_cfg["tenant_name"],
+    client_id=_cfg["client_id"],
+    client_secret=_cred.password,
+    scope=_cfg.get("scope", "https://graph.microsoft.com/.default")
+)
 
     _client = SharePointClient(auth, _cfg["tenant_name"])
 

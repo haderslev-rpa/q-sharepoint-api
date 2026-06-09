@@ -1,0 +1,79 @@
+# q_sharepoint_api/sp_list_item_save.py
+
+from q_sharepoint_api.sp_api import get_client
+from q_sharepoint_api.sp_list_schema import get_list_schema
+from q_sharepoint_api.sp_list_items import get_list_items
+from q_sharepoint_api.sp_time_utils import dk_timestamp
+
+
+ROBOT_COMMENT_UI_NAME = "Robot kommentar"
+CLEAR_MARKER = "#CLEAR#"
+
+
+def save_list_item(site_name, list_name, data):
+    """
+    Opretter eller opdaterer SharePoint item
+    """
+
+    # eksplicit forbudte felter
+    if "Titel" in data:
+        raise Exception("Ugyldigt felt 'Titel'. Brug altid 'Title' i JSON.")
+    if "Id" in data:
+        raise Exception("Ugyldigt felt 'Id'. Brug altid 'id' (lille i).")
+
+    client = get_client()
+    site_id = client.get_site_id(site_name)
+    list_id = client.get_list_id(site_id, list_name)
+    schema = get_list_schema(site_name, list_name)
+
+    item_id = data.get("id")
+    payload = {}
+
+    existing = None
+    if item_id:
+        existing = get_list_items(site_name, list_name, item_id)["items"][0]
+
+    for ui_name, value in data.items():
+
+        if ui_name == "id":
+            continue
+
+        if ui_name not in schema:
+            raise Exception(
+                f"Felt '{ui_name}' findes ikke eller er ikke tilladt i SharePoint"
+            )
+
+        meta = schema[ui_name]
+        if meta["read_only"]:
+            continue
+
+        api_name = meta["api_name"]
+
+        # Robot kommentar
+        if ui_name == ROBOT_COMMENT_UI_NAME:
+            if value == CLEAR_MARKER:
+                payload[api_name] = ""
+            elif value:
+                ts = dk_timestamp()
+                old = existing.get(ROBOT_COMMENT_UI_NAME, "") if existing else ""
+                payload[api_name] = f"{old}\n{ts}: {value}".strip()
+            continue
+
+        if value == CLEAR_MARKER:
+            payload[api_name] = None
+            continue
+
+        if value in ("", None):
+            continue
+
+        payload[api_name] = value
+
+    if item_id:
+        client.update_list_item(site_id, list_id, item_id, payload)
+    else:
+        created = client.create_list_item(
+            site_id, list_id, {"fields": payload}
+        )
+        item_id = created["id"]
+
+    return get_list_items(site_name, list_name, item_id)
