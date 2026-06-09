@@ -1,13 +1,13 @@
 from q_sharepoint_api.sp_api import get_client
-from copilot_integration.copilot_auth import get_user_token_for_copilot
+from q_sharepoint_api.copilot_auth import get_user_token_for_copilot
 
-from copilot_integration.sp_temp_files import (
+from q_sharepoint_api.sp_temp_files import (
     upload_temp_files,
     delete_temp_folder
 )
 
-from copilot_integration.copilot_builder import build_body
-from copilot_integration.copilot_api import CopilotAPI
+from q_sharepoint_api.copilot_builder import build_body
+from q_sharepoint_api.copilot_api import CopilotAPI
 
 
 # -------------------------------------------------
