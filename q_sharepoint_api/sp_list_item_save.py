@@ -133,9 +133,13 @@ def save_list_item(site_name, list_name, data):
             continue
 
         # -------------------------------------------------
-        # ✅ ignorer tomme værdier
+        # ✅ ignorer tomme værdier (men IKKE ved CREATE)
         # -------------------------------------------------
         if value in ("", None):
+            # Ved UPDATE → ok at skippe
+            if not item_id:
+                # CREATE: behold tom værdi hvis field findes i schema
+                payload[api_name] = value if value is not None else ""
             continue
 
         # -------------------------------------------------
