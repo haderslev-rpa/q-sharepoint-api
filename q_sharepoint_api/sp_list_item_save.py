@@ -94,20 +94,17 @@ def save_list_item(site_name, list_name, data):
         # -------------------------------------------------
         # ✅ HYPERLINK (Links kolonne)
         # -------------------------------------------------
-        if meta.get("type") == "hyperlinkOrPicture":
+        # ✅ ROBUST: tjek på selve value (dict med Url)
+        if isinstance(value, dict) and "Url" in value:
 
-            # Hvis vi får dict fra SharePoint (GET-format)
-            if isinstance(value, dict):
-                url = value.get("Url")
-                desc = value.get("Description", "")
+            url = value.get("Url", "")
+            desc = value.get("Description", "")
 
-                if url:
-                    # SharePoint forventer: "url, beskrivelse"
-                    payload[api_name] = f"{url}, {desc}" if desc else url
+            if url:
+                clean_url = url.strip()
 
-            # Hvis det allerede er string → brug direkte
-            elif isinstance(value, str):
-                payload[api_name] = value
+                # SharePoint forventer: "url, beskrivelse"
+                payload[api_name] = f"{clean_url}, {desc}" if desc else clean_url
 
             continue
 
