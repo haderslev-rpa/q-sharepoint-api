@@ -1,5 +1,3 @@
-# q_sharepoint_api/sp_list_item_save.py
-
 from q_sharepoint_api.sp_api import get_client
 from q_sharepoint_api.sp_list_schema import get_list_schema
 from q_sharepoint_api.sp_list_items import get_list_items
@@ -71,7 +69,29 @@ def save_list_item(site_name, list_name, data):
 
         api_name = meta["api_name"]
 
+        # -------------------------------------------------
+        # ✅ HYPERLINK (Links kolonne)
+        # -------------------------------------------------
+        if meta.get("type") == "hyperlinkOrPicture":
+
+            # Hvis vi får dict fra SharePoint (GET-format)
+            if isinstance(value, dict):
+                url = value.get("Url")
+                desc = value.get("Description", "")
+
+                if url:
+                    # SharePoint forventer: "url, beskrivelse"
+                    payload[api_name] = f"{url}, {desc}" if desc else url
+
+            # Hvis det allerede er string → brug direkte
+            elif isinstance(value, str):
+                payload[api_name] = value
+
+            continue
+
+        # -------------------------------------------------
         # ✅ Robot kommentar (append)
+        # -------------------------------------------------
         if ui_name == ROBOT_COMMENT_UI_NAME:
             if value == CLEAR_MARKER:
                 payload[api_name] = ""
@@ -81,15 +101,24 @@ def save_list_item(site_name, list_name, data):
                 payload[api_name] = f"{old}\n{ts}: {value}".strip()
             continue
 
+        # -------------------------------------------------
         # ✅ CLEAR (#CLEAR#)
+        # -------------------------------------------------
         if value == CLEAR_MARKER:
-            payload[api_name] = None
+            # CREATE → spring over | UPDATE → None
+            if item_id:
+                payload[api_name] = None
             continue
 
+        # -------------------------------------------------
         # ✅ ignorer tomme værdier
+        # -------------------------------------------------
         if value in ("", None):
             continue
 
+        # -------------------------------------------------
+        # ✅ almindelig værdi
+        # -------------------------------------------------
         payload[api_name] = value
 
     # ✅ Her bruges det RIGTIGE item_id (fra starten)
