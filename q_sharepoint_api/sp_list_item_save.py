@@ -20,22 +20,25 @@ SYSTEM_FIELDS = {
 }
 
 
-
 def save_list_item(site_name, list_name, data):
     """
     Opretter eller opdaterer SharePoint item
     """
-    # Fjern systemfelter automatisk
+
+    # ✅ AFGØR TYPE FØRST (gem original id)
+    item_id = data.get("id")  # variabel (gemmer SharePoint id)
+
+    # ✅ Fjern systemfelter (men BRUG IKKE id herfra efterfølgende)
     clean_data = {}
 
     for key, value in data.items():
         if key in SYSTEM_FIELDS:
-            continue  # spring systemfelter over
+            continue
         clean_data[key] = value
 
     data = clean_data
 
-    # eksplicit forbudte felter
+    # ✅ Eksplicit validering
     if "Titel" in data:
         raise Exception("Ugyldigt felt 'Titel'. Brug altid 'Title' i JSON.")
     if "Id" in data:
@@ -46,7 +49,6 @@ def save_list_item(site_name, list_name, data):
     list_id = client.get_list_id(site_id, list_name)
     schema = get_list_schema(site_name, list_name)
 
-    item_id = data.get("id")
     payload = {}
 
     existing = None
@@ -64,12 +66,12 @@ def save_list_item(site_name, list_name, data):
             )
 
         meta = schema[ui_name]
-        if meta["read_only"]:
+        if meta.get("read_only"):
             continue
 
         api_name = meta["api_name"]
 
-        # Robot kommentar
+        # ✅ Robot kommentar (append)
         if ui_name == ROBOT_COMMENT_UI_NAME:
             if value == CLEAR_MARKER:
                 payload[api_name] = ""
@@ -79,20 +81,25 @@ def save_list_item(site_name, list_name, data):
                 payload[api_name] = f"{old}\n{ts}: {value}".strip()
             continue
 
+        # ✅ CLEAR (#CLEAR#)
         if value == CLEAR_MARKER:
             payload[api_name] = None
             continue
 
+        # ✅ ignorer tomme værdier
         if value in ("", None):
             continue
 
         payload[api_name] = value
 
+    # ✅ Her bruges det RIGTIGE item_id (fra starten)
     if item_id:
         client.update_list_item(site_id, list_id, item_id, payload)
     else:
         created = client.create_list_item(
-            site_id, list_id, {"fields": payload}
+            site_id,
+            list_id,
+            {"fields": payload}
         )
         item_id = created["id"]
 
