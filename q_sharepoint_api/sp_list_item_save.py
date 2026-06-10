@@ -72,16 +72,15 @@ def save_list_item(site_name, list_name, data):
         # -------------------------------------------------
         # ✅ DATO (dateTime kolonne)
         # -------------------------------------------------
-        if meta.get("type") in ("dateTime", "date"):
+        # ✅ ROBUST check – virker uanset schema variation
+        if isinstance(value, str) and "T" in value:
 
-            if isinstance(value, str) and "T" in value:
-                # Konverter fra SharePoint ISO datetime til SharePoint date format
+            try:
+                # Konverter fra SharePoint ISO datetime → date
                 payload[api_name] = value.split("T")[0]
-            else:
-                # allerede korrekt format
-                payload[api_name] = value
-
-            continue
+                continue
+            except:
+                pass
 
         # -------------------------------------------------
         # ✅ HYPERLINK (Links kolonne)
