@@ -91,22 +91,22 @@ def save_list_item(site_name, list_name, data):
             except:
                 pass
 
-        # -------------------------------------------------
-        # ✅ HYPERLINK (Links kolonne)
-        # -------------------------------------------------
-        # ✅ ROBUST: tjek på selve value (dict med Url)
-        if isinstance(value, dict) and "Url" in value:
+            # -------------------------------------------------
+            # ✅ HYPERLINK (Links kolonne)
+            # -------------------------------------------------
+            # ✅ ROBUST: tjek på selve value (dict med Url)
+            if isinstance(value, dict) and "Url" in value:
 
-            url = value.get("Url", "")
-            desc = value.get("Description", "")
+                url = value.get("Url", "")
 
-            if url:
-                clean_url = url.strip()
+                if url:
+                    clean_url = url.split(";")[0].strip()
 
-                # SharePoint forventer: "url, beskrivelse"
-                payload[api_name] = f"{clean_url}, {desc}" if desc else clean_url
+                    # ✅ GRAPH kræver KUN url (ingen description)
+                    payload[api_name] = clean_url
 
-            continue
+                continue
+
 
         # -------------------------------------------------
         # ✅ Robot kommentar (append)
