@@ -9,11 +9,31 @@ from q_sharepoint_api.sp_time_utils import dk_timestamp
 ROBOT_COMMENT_UI_NAME = "Robot kommentar"
 CLEAR_MARKER = "#CLEAR#"
 
+# systemfelter der ALDRIG må gemmes
+SYSTEM_FIELDS = {
+    "id",
+    "created",
+    "modified",
+    "Author",
+    "Editor",
+    "_UIVersionString",
+}
+
+
 
 def save_list_item(site_name, list_name, data):
     """
     Opretter eller opdaterer SharePoint item
     """
+    # Fjern systemfelter automatisk
+    clean_data = {}
+
+    for key, value in data.items():
+        if key in SYSTEM_FIELDS:
+            continue  # spring systemfelter over
+        clean_data[key] = value
+
+    data = clean_data
 
     # eksplicit forbudte felter
     if "Titel" in data:
