@@ -55,6 +55,15 @@ def save_list_item(site_name, list_name, data):
 
     for ui_name, value in data.items():
 
+        # -------------------------------------------------
+        # ✅ DATO (robust – køres FØR alt andet)
+        # -------------------------------------------------
+        if isinstance(value, str) and "T" in value:
+            try:
+                value = value.split("T")[0]
+            except:
+                pass
+
         if ui_name == "id":
             continue
 
