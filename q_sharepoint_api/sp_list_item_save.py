@@ -70,6 +70,20 @@ def save_list_item(site_name, list_name, data):
         api_name = meta["api_name"]
 
         # -------------------------------------------------
+        # ✅ DATO (dateTime kolonne)
+        # -------------------------------------------------
+        if meta.get("type") in ("dateTime", "date"):
+
+            if isinstance(value, str) and "T" in value:
+                # Konverter fra SharePoint ISO datetime til SharePoint date format
+                payload[api_name] = value.split("T")[0]
+            else:
+                # allerede korrekt format
+                payload[api_name] = value
+
+            continue
+
+        # -------------------------------------------------
         # ✅ HYPERLINK (Links kolonne)
         # -------------------------------------------------
         if meta.get("type") == "hyperlinkOrPicture":
