@@ -53,6 +53,70 @@ class SharePointClient:
         r = requests.get(url, headers=self.auth.graph_headers(), timeout=30)
         r.raise_for_status()
         return r.json()["value"]
+    
+    # ---------------------------
+    # GRAPH EXCEL
+    # ---------------------------
+
+    def get_drive_item_id(self, site_id, file_path):  
+        """
+        Finder file_id (Graph ID for Excel fil)
+        
+        file_path: fx "Shared Documents/mappe/fil.xlsx"
+        """
+
+        url = f"{self.base}/sites/{site_id}/drive/root:/{file_path}"
+
+        r = requests.get(url, headers=self.auth.graph_headers(), timeout=30)
+        r.raise_for_status()
+
+        return r.json()["id"]
+
+
+    def create_excel_session(self, file_id):
+        """
+        Opretter session (hurtigere Excel operationer)
+        """
+
+        url = f"{self.base}/me/drive/items/{file_id}/workbook/createSession"
+
+        data = {
+            "persistChanges": True
+        }
+
+        r = requests.post(url, headers=self.auth.graph_headers(), json=data, timeout=30)
+        r.raise_for_status()
+
+        return r.json()["id"]
+
+
+    def update_excel_range(self, file_id, sheet_name, cell_range, values, session_id=None):
+        """
+        Opdaterer Excel range (celler)
+
+        values = [["A", "B", "C"]]  (liste (datastruktur))
+        """
+
+        url = (
+            f"{self.base}/me/drive/items/{file_id}"
+            f"/workbook/worksheets/{sheet_name}"
+            f"/range(address='{cell_range}')"
+        )
+
+        headers = self.auth.graph_headers()
+
+        # tilføj session hvis findes
+        if session_id:
+            headers["workbook-session-id"] = session_id
+
+        data = {
+            "values": values
+        }
+
+        r = requests.patch(url, headers=headers, json=data, timeout=30)
+        r.raise_for_status()
+
+        return r.json()
 
     # ---------------------------
     # REST (attachments)
