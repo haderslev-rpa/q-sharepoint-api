@@ -1,10 +1,10 @@
 import json
 
 from automation_server_client import AutomationServer, Credential
-from src.q_sharepoint_api.sp_auth import SharePointAuth
-from src.q_sharepoint_api.sp_client import SharePointClient
-from src.q_sharepoint_api.sp_generator import generate_mapping
-from src.q_sharepoint_api.sp_mapping import validate_and_map
+from q_sharepoint_api.sp_auth import SharePointAuth
+from q_sharepoint_api.sp_client import SharePointClient
+from q_sharepoint_api.sp_generator import generate_mapping
+from q_sharepoint_api.sp_mapping import validate_and_map
 
 # -------------------------------------------------
 # INIT: Hent credentials fra Automation Server
