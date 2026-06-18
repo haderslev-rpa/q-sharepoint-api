@@ -8,7 +8,7 @@ import os
 
 from automation_server_client import AutomationServer
 
-from q_sharepoint_api.sp_list_attachments import (
+from q_sharepoint_api.functionality.sp_list_attachments import (
     list_attachments_for_item,
     download_attachment
 )

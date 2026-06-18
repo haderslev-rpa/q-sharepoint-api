@@ -14,8 +14,8 @@ Tester:
 from pprint import pprint                     # funktion (pæn print)
 from automation_server_client import AutomationServer  # klasse (miljø-loader)
 
-from q_sharepoint_api.sp_list_items import get_list_items      # funktion (GET)
-from q_sharepoint_api.sp_list_item_save import save_list_item  # funktion (SAVE)
+from q_sharepoint_api.functionality.sp_list_items import get_list_items      # funktion (GET)
+from q_sharepoint_api.functionality.sp_list_item_save import save_list_item  # funktion (SAVE)
 
 
 # -------------------------------------------------

@@ -1,6 +1,6 @@
 from q_sharepoint_api.sp_api import get_client
 from q_sharepoint_api.sp_list_schema import get_list_schema
-from q_sharepoint_api.sp_list_items import get_list_items
+from q_sharepoint_api.functionality.sp_list_items import get_list_items
 from q_sharepoint_api.sp_time_utils import dk_timestamp
 
 

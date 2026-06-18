@@ -14,8 +14,8 @@ Brug denne fil når du:
 - box
 """
 
-from q_sharepoint_api.sp_list_items import get_list_items   # funktion (GET items)
-from q_sharepoint_api.sp_list_item_save import save_list_item  # funktion (SAVE)
+from q_sharepoint_api.functionality.sp_list_items import get_list_items   # funktion (GET items)
+from q_sharepoint_api.functionality.sp_list_item_save import save_list_item  # funktion (SAVE)
 
 
 def get_sharepoint_list_item(site_name, list_name, list_item_id):

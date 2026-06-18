@@ -2,7 +2,7 @@
 
 from automation_server_client import AutomationServer
 from pprint import pprint
-from q_sharepoint_api.sp_listitem_json import get_item_as_json
+from q_sharepoint_api.functionality.sp_listitem_json import get_item_as_json
 
 # -------------------------------------------------
 # INIT (miljø)

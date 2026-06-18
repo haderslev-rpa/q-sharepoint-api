@@ -12,7 +12,7 @@ Tester:
 import requests
 from automation_server_client import AutomationServer
 
-from q_sharepoint_api.copilot_runner import run_copilot
+from q_sharepoint_api.functionality.copilot_runner import run_copilot
 from q_sharepoint_api.sp_api import get_client
 from q_sharepoint_api.sp_rest_user_auth import get_rest_headers
 from q_sharepoint_api.sp_site_context import get_site

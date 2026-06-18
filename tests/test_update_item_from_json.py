@@ -1,6 +1,6 @@
 from automation_server_client import AutomationServer
 
-from q_sharepoint_api.sp_listitem_json import (
+from q_sharepoint_api.functionality.sp_listitem_json import (
     get_item_as_json,
     update_item_from_json
 )

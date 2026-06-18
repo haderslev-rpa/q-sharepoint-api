@@ -1,4 +1,4 @@
-from src.copilot_integration.copilot_runner import run_copilot
+from q_sharepoint_api.functionality.copilot_runner import run_copilot
 
 
 files = [
