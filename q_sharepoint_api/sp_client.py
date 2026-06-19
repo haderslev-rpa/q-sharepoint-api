@@ -55,6 +55,98 @@ class SharePointClient:
         return r.json()["value"]
     
     # ---------------------------
+    # GRAPH DRIVE (mapper + filer)
+    # ---------------------------
+
+    def get_drive_id(self, site_id):
+        """
+        Henter drive-id (dokumentbibliotek)
+        """
+        url = f"{self.base}/sites/{site_id}/drive"
+
+        r = requests.get(
+            url,
+            headers=self.auth.graph_headers(),
+            timeout=30
+        )
+        r.raise_for_status()
+
+        return r.json()["id"]
+
+
+    def create_folder(self, drive_id, parent_path, folder_name):
+        """
+        Opretter mappe i SharePoint
+
+        parent_path: fx "Shared Documents/Test"
+        folder_name: fx "MinMappe"
+        """
+
+        url = f"{self.base}/drives/{drive_id}/root:/{parent_path}:/children"
+
+        data = {
+            "name": folder_name,
+            "folder": {},
+            "@microsoft.graph.conflictBehavior": "rename"
+        }
+
+        r = requests.post(
+            url,
+            headers=self.auth.graph_headers(),
+            json=data,
+            timeout=30
+        )
+        r.raise_for_status()
+
+        return r.json()  # objekt (konkret instans af mappe)
+
+
+    def upload_file(self, drive_id, folder_path, file_name, content):
+        """
+        Uploader fil
+
+        folder_path: fx "Shared Documents/Test/MinMappe"
+        content: bytes (fil indhold)
+        """
+
+        url = (
+            f"{self.base}/drives/{drive_id}/root:/{folder_path}/{file_name}:/content"
+        )
+
+        r = requests.put(
+            url,
+            headers=self.auth.graph_headers(),
+            data=content,
+            timeout=60
+        )
+        r.raise_for_status()
+
+        return r.json()
+
+
+    def delete_item(self, drive_id, item_id):
+        """
+        Sletter mappe eller fil via ID
+        """
+
+        url = f"{self.base}/drives/{drive_id}/items/{item_id}"
+
+        r = requests.delete(
+            url,
+            headers=self.auth.graph_headers(),
+            timeout=30
+        )
+        r.raise_for_status()
+
+
+    def delete_file(self, drive_id, item_id):
+        """
+        Sletter fil (wrapper)
+        """
+        self.delete_item(drive_id, item_id)
+
+
+    # ---------------------------
     # GRAPH EXCEL
     # ---------------------------
 

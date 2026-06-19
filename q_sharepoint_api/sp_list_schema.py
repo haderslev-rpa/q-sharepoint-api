@@ -1,11 +1,7 @@
 # q_sharepoint_api/sp_list_schema.py
 
-from q_sharepoint_api.sp_api import get_client  # funktion (hent klient)
+from q_sharepoint_api.sp_api import get_client
 
-
-# -------------------------------------------------
-# FELTER SOM ALDRIG MÅ BRUGES (UI-navne)
-# -------------------------------------------------
 
 IGNORED_UI_FIELDS = {
     "Antal underordnede elementer",
@@ -14,7 +10,7 @@ IGNORED_UI_FIELDS = {
     "App ændret af",
     "Element er en post",
     "Farvemærke",
-    "Id",                    # stort I (systemfelt)
+    "Id",
     "Indholdstype",
     "Indstilling for mærkat",
     "Mærkat anvendt af",
@@ -22,7 +18,7 @@ IGNORED_UI_FIELDS = {
     "Opbevaringsmærkat er anvendt",
     "Overholdelsesaktiv-id",
     "Rediger",
-    "Titel",                 # dansk titel (må ikke bruges)
+    "Titel",
     "Type",
     "Version",
     "Vedhæftede filer",
@@ -34,28 +30,35 @@ IGNORED_UI_FIELDS = {
 
 
 def get_list_schema(site_name, list_name):
-    """
-    Returnerer schema for SharePoint-liste
-    Kun tilladte forretningsfelter
-    """
 
-    client = get_client()                         # objekt (SharePoint-klient)
-    site_id = client.get_site_id(site_name)       # tekst (site-id)
+    client = get_client()
+    site_id = client.get_site_id(site_name)
     list_id = client.get_list_id(site_id, list_name)
 
-    schema = {}                                   # dict (schema)
+    schema = {}
 
     for col in client.get_list_columns(site_id, list_id):
 
-        ui_name = col.get("displayName")          # tekst (UI-navn)
+        ui_name = col.get("displayName")
 
-        # spring ignorerede felter over
         if ui_name in IGNORED_UI_FIELDS:
             continue
 
+        # ✅ SIMPEL TYPE (kun det der virker stabilt)
+        col_type = "text"
+
+        if col.get("choice"):
+            col_type = "choice"
+        elif col.get("personOrGroup"):
+            col_type = "user"
+        elif col.get("lookup"):
+            col_type = "lookup"
+        elif col.get("dateTime"):
+            col_type = "date"
+
         schema[ui_name] = {
-            "api_name": col.get("name"),          # tekst (API-navn)
-            "type": col.get("columnType"),        # tekst (datatype)
+            "api_name": col.get("name"),
+            "type": col_type,
             "read_only": col.get("readOnly", False)
         }
 

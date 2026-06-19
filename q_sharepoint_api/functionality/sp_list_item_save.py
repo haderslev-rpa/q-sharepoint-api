@@ -54,6 +54,9 @@ def save_list_item(site_name, list_name, data):
         existing = get_list_items(site_name, list_name, item_id)["items"][0]
 
     for ui_name, value in data.items():
+        # ✅ INTERN FELT - spring over
+        if ui_name == "_robot_comment":
+            continue
 
         # -------------------------------------------------
         # ✅ DATO (robust – køres FØR alt andet)
@@ -68,11 +71,18 @@ def save_list_item(site_name, list_name, data):
             continue
 
         if ui_name not in schema:
-            raise Exception(
-                f"Felt '{ui_name}' findes ikke eller er ikke tilladt i SharePoint"
-            )
+            raise Exception(...)
 
         meta = schema[ui_name]
+        #print("DEBUG FIELD:", ui_name, meta)
+
+        if meta.get("type") == "hyperlink":
+            raise Exception(
+                f"Felt '{ui_name}' er en SharePoint hyperlink kolonne. "
+                f"Disse understøttes ikke ved create/update via API. "
+                f"Fjern feltet fra input."
+            )
+
         if meta.get("read_only"):
             continue
 
@@ -112,12 +122,18 @@ def save_list_item(site_name, list_name, data):
         # ✅ Robot kommentar (append)
         # -------------------------------------------------
         if ui_name == ROBOT_COMMENT_UI_NAME:
-            if value == CLEAR_MARKER:
-                payload[api_name] = ""
-            elif value:
+
+            incoming = data.get("_robot_comment")
+
+            if incoming:
                 ts = dk_timestamp()
                 old = existing.get(ROBOT_COMMENT_UI_NAME, "") if existing else ""
-                payload[api_name] = f"{old}\n{ts}: {value}".strip()
+
+                if old:
+                    payload[api_name] = f"{old}\n{ts}: {incoming}"
+                else:
+                    payload[api_name] = f"{ts}: {incoming}"
+
             continue
 
         # -------------------------------------------------
