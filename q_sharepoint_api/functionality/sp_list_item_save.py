@@ -89,6 +89,15 @@ def save_list_item(site_name, list_name, data):
             raise Exception(f"Felt '{ui_name}' findes ikke i schema")
 
         meta = schema[ui_name]
+        if meta.get("type") == "choice":
+
+            is_multi = meta.get("multi", False)
+
+            if isinstance(value, list):
+                if is_multi:
+                    value = value
+                else:
+                    value = value[0] if value else None
 
         if meta.get("type") == "hyperlink":
             raise Exception(
