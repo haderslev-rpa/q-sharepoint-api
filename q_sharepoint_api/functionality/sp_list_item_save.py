@@ -161,14 +161,95 @@ def save_list_item(site_name, list_name, data):
         payload[api_name] = value
 
     # ✅ Her bruges det RIGTIGE item_id (fra starten)
-    if item_id:
-        client.update_list_item(site_id, list_id, item_id, payload)
-    else:
-        created = client.create_list_item(
-            site_id,
-            list_id,
-            {"fields": payload}
-        )
-        item_id = created["id"]
+    try:
+        if item_id:
+            client.update_list_item(site_id, list_id, item_id, payload)
+        else:
+            created = client.create_list_item(
+                site_id,
+                list_id,
+                {"fields": payload}
+            )
+            item_id = created["id"]
+
+    except Exception as e:
+
+        from pprint import pprint
+
+        print("\n" + "=" * 100)
+        print("❌ SHAREPOINT ERROR DEBUG")
+        print("=" * 100)
+
+        # -------------------------------------------------
+        # 🔹 INPUT
+        # -------------------------------------------------
+        print("\n🔹 INPUT (box.sharepoint):")
+        pprint(data)
+
+        # -------------------------------------------------
+        # 🔹 PAYLOAD (det der sendes)
+        # -------------------------------------------------
+        print("\n🔹 PAYLOAD (sendt til SharePoint):")
+        pprint(payload)
+
+        # -------------------------------------------------
+        # 🔹 SCHEMA
+        # -------------------------------------------------
+        print("\n🔹 SCHEMA (tilladte felter):")
+        for k, v in schema.items():
+            print(f" - {k:30} → api: {v['api_name']} | type: {v['type']}")
+
+        # -------------------------------------------------
+        # 🔹 FELTER DER IKKE FINDES I SCHEMA
+        # -------------------------------------------------
+        print("\n🔹 FELTER DER IKKE MATCHER SCHEMA:")
+        unknown_fields = [k for k in data.keys() if k not in schema]
+        if unknown_fields:
+            for k in unknown_fields:
+                print(f" - {k}")
+        else:
+            print(" ✅ ingen")
+
+        # -------------------------------------------------
+        # 🔹 FELTER DU MANGLER (BONUS)
+        # -------------------------------------------------
+        print("\n🔹 FELTER DU IKKE HAR SENDT (kan være required):")
+        missing_fields = [k for k in schema.keys() if k not in data]
+        if missing_fields:
+            for k in missing_fields:
+                print(f" - {k}")
+        else:
+            print(" ✅ ingen")
+
+        # -------------------------------------------------
+        # 🔹 FELTER MED None / tomme (ofte årsag)
+        # -------------------------------------------------
+        print("\n🔹 FELTER MED TOMME VÆRDIER:")
+        empty_fields = [k for k, v in data.items() if v in ("", None)]
+        if empty_fields:
+            for k in empty_fields:
+                print(f" - {k}")
+        else:
+            print(" ✅ ingen")
+
+        # -------------------------------------------------
+        # 🔹 PAYLOAD vs DATA mismatch
+        # -------------------------------------------------
+        print("\n🔹 FELTER DER FORSVINDER FRA DATA → PAYLOAD:")
+        for k in data.keys():
+            if k in schema:
+                api_name = schema[k]["api_name"]
+                if api_name not in payload:
+                    print(f" - {k}")
+
+        # -------------------------------------------------
+        # 🔹 ORIGINAL ERROR
+        # -------------------------------------------------
+        print("\n🔹 ORIGINAL ERROR:")
+        print(str(e))
+
+        print("=" * 100 + "\n")
+
+        raise
 
     return get_list_items(site_name, list_name, item_id)
