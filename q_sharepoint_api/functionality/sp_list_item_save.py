@@ -54,6 +54,7 @@ def save_list_item(site_name, list_name, data):
         existing = get_list_items(site_name, list_name, item_id)["items"][0]
 
     for ui_name, value in data.items():
+
         # ✅ INTERN FELT - spring over
         if ui_name == "_robot_comment":
             continue
@@ -71,10 +72,9 @@ def save_list_item(site_name, list_name, data):
             continue
 
         if ui_name not in schema:
-            raise Exception(...)
+            raise Exception(f"Felt '{ui_name}' findes ikke i schema")
 
         meta = schema[ui_name]
-        #print("DEBUG FIELD:", ui_name, meta)
 
         if meta.get("type") == "hyperlink":
             raise Exception(
@@ -93,30 +93,8 @@ def save_list_item(site_name, list_name, data):
         # -------------------------------------------------
         # ✅ ROBUST check – virker uanset schema variation
         if isinstance(value, str) and "T" in value:
-
-            try:
-                # Konverter fra SharePoint ISO datetime → date
-                payload[api_name] = value.split("T")[0]
-                continue
-            except:
-                pass
-
-            # -------------------------------------------------
-            # ✅ HYPERLINK (Links kolonne)
-            # -------------------------------------------------
-            # ✅ ROBUST: tjek på selve value (dict med Url)
-            if isinstance(value, dict) and "Url" in value:
-
-                url = value.get("Url", "")
-
-                if url:
-                    clean_url = url.split(";")[0].strip()
-
-                    # ✅ GRAPH kræver KUN url (ingen description)
-                    payload[api_name] = clean_url
-
-                continue
-
+            payload[api_name] = value.split("T")[0]
+            continue
 
         # -------------------------------------------------
         # ✅ Robot kommentar (append)
@@ -203,7 +181,12 @@ def save_list_item(site_name, list_name, data):
         # 🔹 FELTER DER IKKE FINDES I SCHEMA
         # -------------------------------------------------
         print("\n🔹 FELTER DER IKKE MATCHER SCHEMA:")
-        unknown_fields = [k for k in data.keys() if k not in schema]
+
+        unknown_fields = [
+            k for k in data.keys()
+            if k not in schema and not k.startswith("_")
+        ]
+
         if unknown_fields:
             for k in unknown_fields:
                 print(f" - {k}")
@@ -225,7 +208,11 @@ def save_list_item(site_name, list_name, data):
         # 🔹 FELTER MED None / tomme (ofte årsag)
         # -------------------------------------------------
         print("\n🔹 FELTER MED TOMME VÆRDIER:")
-        empty_fields = [k for k, v in data.items() if v in ("", None)]
+        empty_fields = [
+            k for k, v in data.items()
+            if v in ("", None) and not k.startswith("_")
+        ]
+
         if empty_fields:
             for k in empty_fields:
                 print(f" - {k}")
