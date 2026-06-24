@@ -89,6 +89,17 @@ def save_list_item(site_name, list_name, data):
             raise Exception(f"Felt '{ui_name}' findes ikke i schema")
 
         meta = schema[ui_name]
+
+        # -------------------------------------------------
+        # ❌ BLOKER BOOL INPUT (Yes/No skal være choice)
+        # -------------------------------------------------
+        if isinstance(value, bool):
+            raise Exception(
+                f"Felt '{ui_name}' modtog en bool værdi ({value}).\n"
+                f"Dette er ikke tilladt.\n"
+                f"Brug i stedet 'Ja' eller 'Nej' (Choice felt) i box.sharepoint og i sharepoint UI."
+            )
+
         if meta.get("type") == "choice":
 
             is_multi = meta.get("multi", False)
