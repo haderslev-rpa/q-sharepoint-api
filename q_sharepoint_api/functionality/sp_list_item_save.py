@@ -47,6 +47,20 @@ def save_list_item(site_name, list_name, data):
     list_id = client.get_list_id(site_id, list_name)
     schema = get_list_schema(site_name, list_name)
 
+    # -------------------------------------------------
+    # ✅ VALIDERING FØR LOOP 
+    # -------------------------------------------------
+    invalid_fields = [
+        k for k in data.keys()
+        if k not in schema and not k.startswith("_") and k != "id"
+    ]
+
+    if invalid_fields:
+        raise Exception(
+            f"Ugyldige felter i input: {invalid_fields}\n"
+            f"Gyldige felter i SharePoint: {list(schema.keys())}"
+        )
+
     payload = {}
 
     existing = None
