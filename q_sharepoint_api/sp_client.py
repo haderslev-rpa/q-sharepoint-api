@@ -1,6 +1,7 @@
 # q_sharepoint_api/sp_client.py
 
 import requests
+from urllib.parse import quote
 
 
 class SharePointClient:
@@ -150,16 +151,53 @@ class SharePointClient:
     # GRAPH EXCEL
     # ---------------------------
 
-    def get_drive_item_id(self, site_id, file_path):  
+    
+    def get_drive_item_id(self, site_id, file_path):
         """
-        Finder file_id (Graph ID for Excel fil)
-        
-        file_path: fx "Shared Documents/mappe/fil.xlsx"
+        Finder item_id for en fil i SharePoint ud fra filsti.
+
+        file_path:
+            Sti inde i dokumentbiblioteket.
+            Fx:
+            "Test/min_fil.xlsx"
         """
 
-        url = f"{self.base}/sites/{site_id}/drive/root:/{file_path}"
+        # -------------------------------------------------
+        # Gør file_path ren
+        # -------------------------------------------------
 
-        r = requests.get(url, headers=self.auth.graph_headers(), timeout=30)
+        # Fjern mellemrum før/efter
+        file_path = file_path.strip()
+
+        # Fjern start-slash hvis den findes
+        file_path = file_path.lstrip("/")
+
+        # Ret Windows backslash til normal slash
+        file_path = file_path.replace("\\", "/")
+
+        # URL-encode (gør sti sikker til Graph API)
+        encoded_path = quote(file_path, safe="/")
+
+        # -------------------------------------------------
+        # Graph URL
+        # -------------------------------------------------
+        url = f"{self.base}/sites/{site_id}/drive/root:/{encoded_path}:"
+
+        print("🔎 get_drive_item_id URL:")
+        print(url)
+
+        r = requests.get(
+            url,
+            headers=self.auth.graph_headers(),
+            timeout=30
+        )
+
+        if r.status_code == 404:
+            print("❌ Filen blev ikke fundet på denne sti:")
+            print(file_path)
+            print("Encoded path:")
+            print(encoded_path)
+
         r.raise_for_status()
 
         return r.json()["id"]
@@ -229,3 +267,99 @@ class SharePointClient:
         r.raise_for_status()
 
         return r.json()
+    
+
+    # -------------------------------------------------
+    # DOWNLOAD FILE TO MEMORY BY PATH
+    # -------------------------------------------------
+    def download_file_to_memory_by_path(
+        self,
+        site_id,
+        file_path,
+        save_dir=None
+    ):
+        """
+        Henter en SharePoint-fil via fuld filsti og gemmer den i memory.
+
+        site_id:
+            SharePoint site id
+
+        file_path:
+            Sti inde i dokumentbiblioteket.
+            Fx:
+            "Distrikter/Vejliste over Haderslev kommune - Forebyggende Hje.xlsx"
+
+        save_dir:
+            Valgfri Linux-mappe.
+            Hvis udfyldt, gemmes filen også på disk.
+        """
+
+        # -------------------------------------------------
+        # Gør file_path API-sikker
+        # -------------------------------------------------
+
+        # Fjern evt. start-slash
+        file_path = file_path.strip().lstrip("/")
+
+        # Ret Windows backslash til normal slash
+        file_path = file_path.replace("\\", "/")
+
+        # URL-encode (gør sti sikker til API)
+        encoded_file_path = quote(file_path, safe="/")
+
+        # -------------------------------------------------
+        # Find filen via path
+        # -------------------------------------------------
+        item_url = (
+            f"{self.base}/sites/{site_id}"
+            f"/drive/root:/{encoded_file_path}"
+        )
+
+        item_response = requests.get(
+            item_url,
+            headers=self.auth.graph_headers(),
+            timeout=30
+        )
+        item_response.raise_for_status()
+
+        item = item_response.json()
+
+        item_id = item["id"]
+        filename = item["name"]
+
+        # -------------------------------------------------
+        # Download fil-content
+        # -------------------------------------------------
+        content_url = (
+            f"{self.base}/sites/{site_id}"
+            f"/drive/items/{item_id}/content"
+        )
+
+        content_response = requests.get(
+            content_url,
+            headers=self.auth.graph_headers(),
+            timeout=60
+        )
+        content_response.raise_for_status()
+
+        file_bytes = content_response.content
+
+        saved_path = None
+
+        # -------------------------------------------------
+        # Gem evt. på Linux
+        # -------------------------------------------------
+        if save_dir:
+            os.makedirs(save_dir, exist_ok=True)
+
+            saved_path = os.path.join(save_dir, filename)
+
+            with open(saved_path, "wb") as f:
+                f.write(file_bytes)
+
+        return {
+            "filename": filename,
+            "file_bytes": file_bytes,
+            "saved_path": saved_path,
+            "item": item
+        }

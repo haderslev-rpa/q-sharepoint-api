@@ -2,6 +2,9 @@ import requests
 
 from q_sharepoint_api.sp_api import get_client
 from q_sharepoint_api.copilot_auth import get_token
+import os
+import dotenv
+
 
 
 # -------------------------------------------------
@@ -18,7 +21,8 @@ headers = {
 # -------------------------------------------------
 # HENT MAILS
 # -------------------------------------------------
-mail = "dirxhel@haderslev.dk"
+dotenv.load_dotenv()
+mail = os.getenv("TEST_MAIL")
 
 url = f"https://graph.microsoft.com/v1.0/users/{mail}/messages?$top=5"
 
