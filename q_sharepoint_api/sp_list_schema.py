@@ -40,6 +40,21 @@ def get_list_schema(site_name, list_name):
     for col in client.get_list_columns(site_id, list_id):
 
         ui_name = col.get("displayName")
+        api_name = col.get("name")
+
+        # -------------------------------------------------
+        # ✅ SPECIAL CASE: SharePoint Title / Titel
+        # -------------------------------------------------
+        # SharePoint viser ofte feltet som "Titel" på dansk,
+        # men API-navnet er "Title".
+        # I vores JSON vil vi ALTID bruge "Title".
+        if ui_name == "Titel" or api_name == "Title":
+            schema["Title"] = {
+                "api_name": "Title",
+                "type": "text",
+                "read_only": col.get("readOnly", False)
+            }
+            continue
 
         if ui_name in IGNORED_UI_FIELDS:
             continue
@@ -55,9 +70,11 @@ def get_list_schema(site_name, list_name):
             col_type = "lookup"
         elif col.get("dateTime"):
             col_type = "date"
+        elif col.get("hyperlinkOrPicture"):
+            col_type = "hyperlink"
 
         schema[ui_name] = {
-            "api_name": col.get("name"),
+            "api_name": api_name,
             "type": col_type,
             "read_only": col.get("readOnly", False)
         }
