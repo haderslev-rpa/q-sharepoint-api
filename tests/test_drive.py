@@ -10,7 +10,7 @@ def run_test():
     client = get_client()  # objekt (konkret instans af klasse)
 
     # 🔧 KONFIGURATION
-    site_name = "Automatisering"  # <-- ændr!
+    site_name = "Forebyggendehjemmebesg"  # <-- ændr!
     base_path = "Test"
 
     # 1. Hent site
