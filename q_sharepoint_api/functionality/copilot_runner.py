@@ -21,19 +21,51 @@ DEFAULT_SITE = "Automatisering"
 # INTERN: extract tekst
 # -------------------------------------------------
 def _extract_simple_output(messages):
-    texts = []
+    """Returnerer sidste svartekst fra en ny Copilot-samtale.
 
-    for m in messages:
-        content = m.get("content") or m.get("text")
+    run_copilot() starter en ny samtale for hvert kald.
+    Første besked er prompten. Sidste besked er svaret.
+    Funktionen stopper tydeligt, hvis svaret mangler.
+    """
+    if not isinstance(messages, list) or len(messages) < 2:
+        raise RuntimeError(
+            "Copilot returnerede ikke både prompt og svar."
+        )
 
-        if isinstance(content, list):
-            for c in content:
-                texts.append(c.get("text", ""))
+    message = messages[-1]
 
-        elif isinstance(content, str):
-            texts.append(content)
+    if not isinstance(message, dict):
+        raise RuntimeError(
+            "Copilot-svaret har et uventet format."
+        )
 
-    return "\n".join([t for t in texts if t])
+    content = message.get("text")
+
+    if content is None:
+        content = message.get("content")
+
+    if isinstance(content, str):
+        response_text = content
+
+    elif isinstance(content, list):
+        response_text = "\n".join(
+            part["text"]
+            for part in content
+            if isinstance(part, dict)
+            and isinstance(part.get("text"), str)
+        )
+
+    else:
+        raise RuntimeError(
+            "Copilot-svaret indeholder ingen svartekst."
+        )
+
+    if not response_text.strip():
+        raise RuntimeError(
+            "Copilot returnerede en tom svartekst."
+        )
+
+    return response_text
 
 
 # -------------------------------------------------
