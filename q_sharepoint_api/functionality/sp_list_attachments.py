@@ -1,96 +1,446 @@
-# q_sharepoint_api/sp_listattachments.py
+"""
+Funktioner til vedhæftninger på SharePoint-liste-items.
+
+Funktionerne bruger SharePoint REST API, fordi listeattachments
+håndteres gennem listens UI-navn.
+"""
+
+from __future__ import annotations
 
 import os
+from pathlib import Path
+from typing import Any
+
 import requests
 
-from q_sharepoint_api.sp_rest_user_auth import get_rest_headers
-from q_sharepoint_api.sp_site_context import get_site
+from q_sharepoint_api.sp_rest_user_auth import (
+    get_rest_headers,
+)
+from q_sharepoint_api.sp_site_context import (
+    get_site,
+)
 
 
-def list_attachments_for_item(site_name, list_name, item_id):
+# ------------------------------------------------------------
+# VALIDERING
+# ------------------------------------------------------------
+
+def _require_text(
+    value: object,
+    field_name: str,
+) -> str:
     """
-    Henter alle attachments for et SharePoint liste-item
-    (REST kræver listens UI-navn)
-    """
+    Validerer en obligatorisk tekstværdi.
 
-    site = get_site(site_name)  # SiteContext (samlet site-info)
+    Returnerer:
+        Værdien som trimmet tekst.
+    """
+    text = str(value or "").strip()
+
+    if not text:
+        raise ValueError(
+            f"{field_name} må ikke være tom."
+        )
+
+    return text
+
+
+def _validate_file_name(
+    file_name: str,
+) -> str:
+    """
+    Validerer filnavnet til en SharePoint-vedhæftning.
+
+    Filnavnet må kun være et filnavn og må ikke indeholde
+    en lokal eller relativ mappesti.
+
+    Returnerer:
+        Det validerede filnavn.
+    """
+    validated_file_name = _require_text(
+        file_name,
+        "file_name",
+    )
+
+    invalid_characters = {
+        "/",
+        "\\",
+        ":",
+        "*",
+        "?",
+        '"',
+        "<",
+        ">",
+        "|",
+    }
+
+    found_invalid_characters = sorted(
+        character
+        for character in invalid_characters
+        if character in validated_file_name
+    )
+
+    if found_invalid_characters:
+        raise ValueError(
+            "file_name indeholder ugyldige tegn: "
+            f"{found_invalid_characters}"
+        )
+
+    return validated_file_name
+
+
+def _validate_file_bytes(
+    file_bytes: bytes,
+) -> bytes:
+    """
+    Validerer filindhold fra memory.
+
+    Returnerer:
+        De validerede bytes.
+    """
+    if not isinstance(file_bytes, bytes):
+        raise TypeError(
+            "file_bytes skal være bytes."
+        )
+
+    if not file_bytes:
+        raise ValueError(
+            "file_bytes må ikke være tom."
+        )
+
+    return file_bytes
+
+
+def _prepare_attachment(
+    *,
+    file_path: str | os.PathLike[str] | None,
+    file_name: str | None,
+    file_bytes: bytes | None,
+) -> tuple[str, bytes]:
+    """
+    Klargør vedhæftningen fra enten disk eller memory.
+
+    Der skal vælges præcis én af disse inputmetoder:
+
+    1. file_path
+    2. file_bytes sammen med file_name
+
+    Returnerer:
+        Tuple med:
+            - filnavn
+            - filindhold som bytes
+    """
+    has_file_path = file_path is not None
+    has_file_bytes = file_bytes is not None
+    has_file_name = file_name is not None
+
+    if has_file_path and has_file_bytes:
+        raise ValueError(
+            "Angiv enten file_path eller file_bytes, "
+            "ikke begge dele."
+        )
+
+    if not has_file_path and not has_file_bytes:
+        raise ValueError(
+            "Angiv enten file_path eller file_bytes."
+        )
+
+    if has_file_path:
+        if has_file_name:
+            raise ValueError(
+                "file_name må ikke angives sammen med file_path. "
+                "Filnavnet udledes automatisk fra filstien."
+            )
+
+        path = Path(file_path)
+
+        if not path.is_file():
+            raise FileNotFoundError(
+                f"Filen findes ikke: {path}"
+            )
+
+        validated_file_name = _validate_file_name(
+            path.name
+        )
+
+        content = path.read_bytes()
+
+        if not content:
+            raise ValueError(
+                f"Filen er tom: {path}"
+            )
+
+        return (
+            validated_file_name,
+            content,
+        )
+
+    if not has_file_name:
+        raise ValueError(
+            "file_name skal angives, når file_bytes bruges."
+        )
+
+    validated_file_name = _validate_file_name(
+        file_name
+    )
+
+    validated_file_bytes = _validate_file_bytes(
+        file_bytes
+    )
+
+    return (
+        validated_file_name,
+        validated_file_bytes,
+    )
+
+
+# ------------------------------------------------------------
+# HENT ATTACHMENTS
+# ------------------------------------------------------------
+
+def list_attachments_for_item(
+    site_name: str,
+    list_name: str,
+    item_id: int | str,
+) -> list[dict[str, Any]]:
+    """
+    Henter alle vedhæftninger for et SharePoint-liste-item.
+
+    SharePoint REST kræver listens UI-navn.
+
+    Returnerer:
+        En liste med SharePoints attachment-oplysninger.
+    """
+    validated_site_name = _require_text(
+        site_name,
+        "site_name",
+    )
+
+    validated_list_name = _require_text(
+        list_name,
+        "list_name",
+    )
+
+    validated_item_id = _require_text(
+        item_id,
+        "item_id",
+    )
+
+    site = get_site(
+        validated_site_name
+    )
+
+    escaped_list_name = (
+        validated_list_name.replace(
+            "'",
+            "''",
+        )
+    )
 
     url = (
-        f"{site.site_url}/_api/web/lists/getbytitle('{list_name}')"
-        f"/items({item_id})/AttachmentFiles"
+        f"{site.site_url}"
+        f"/_api/web/lists/getbytitle('{escaped_list_name}')"
+        f"/items({validated_item_id})/AttachmentFiles"
     )
 
     response = requests.get(
         url,
         headers=get_rest_headers(),
-        timeout=30
+        timeout=30,
     )
+
     response.raise_for_status()
 
     return response.json()["d"]["results"]
 
 
-def download_attachment(site_name, attachment, target_folder):
+# ------------------------------------------------------------
+# DOWNLOAD ATTACHMENT
+# ------------------------------------------------------------
+
+def download_attachment(
+    site_name: str,
+    attachment: dict[str, Any],
+    target_folder: str | os.PathLike[str],
+) -> str:
     """
-    Downloader ét attachment og gemmer lokalt på Linux
+    Downloader én SharePoint-vedhæftning og gemmer den lokalt.
+
+    Returnerer:
+        Den lokale filsti som tekst.
     """
-
-    site = get_site(site_name)  # SiteContext (samlet site-info)
-
-    file_name = attachment["FileName"]
-    server_relative_url = attachment["ServerRelativeUrl"]
-
-    # ✅ KORREKT REST download-endpoint
-    download_url = (
-        f"{site.site_url}/_api/web"
-        f"/GetFileByServerRelativeUrl('{server_relative_url}')/$value"
+    validated_site_name = _require_text(
+        site_name,
+        "site_name",
     )
 
-    os.makedirs(target_folder, exist_ok=True)
-    local_path = os.path.join(target_folder, file_name)
+    if not isinstance(attachment, dict):
+        raise TypeError(
+            "attachment skal være en dictionary."
+        )
+
+    file_name = _validate_file_name(
+        attachment.get("FileName")
+    )
+
+    server_relative_url = _require_text(
+        attachment.get("ServerRelativeUrl"),
+        "attachment['ServerRelativeUrl']",
+    )
+
+    site = get_site(
+        validated_site_name
+    )
+
+    escaped_server_relative_url = (
+        server_relative_url.replace(
+            "'",
+            "''",
+        )
+    )
+
+    download_url = (
+        f"{site.site_url}"
+        f"/_api/web"
+        f"/GetFileByServerRelativeUrl("
+        f"'{escaped_server_relative_url}'"
+        f")/$value"
+    )
+
+    target_path = Path(
+        target_folder
+    )
+
+    target_path.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    local_path = (
+        target_path
+        / file_name
+    )
 
     response = requests.get(
         download_url,
         headers=get_rest_headers(),
-        timeout=60
+        timeout=60,
     )
+
     response.raise_for_status()
 
-    with open(local_path, "wb") as f:
-        f.write(response.content)
+    local_path.write_bytes(
+        response.content
+    )
 
-    return local_path
+    return str(local_path)
 
 
-def add_attachment_to_item(site_name, list_name, item_id, file_path):
+# ------------------------------------------------------------
+# UPLOAD ATTACHMENT
+# ------------------------------------------------------------
+
+def add_attachment_to_item(
+    site_name: str,
+    list_name: str,
+    item_id: int | str,
+    file_path: str | os.PathLike[str] | None = None,
+    *,
+    file_name: str | None = None,
+    file_bytes: bytes | None = None,
+) -> dict[str, Any]:
     """
-    Uploader en lokal fil som attachment på et SharePoint liste-item
-    (REST kræver listens UI-navn)
+    Uploader en vedhæftning til et SharePoint-liste-item.
+
+    Vælg præcis én inputmetode.
+
+    Upload fra en lokal fil:
+
+        add_attachment_to_item(
+            site_name="Automatisering",
+            list_name="Min liste",
+            item_id=1,
+            file_path="/tmp/dokument.pdf",
+        )
+
+    Upload direkte fra memory:
+
+        add_attachment_to_item(
+            site_name="Automatisering",
+            list_name="Min liste",
+            item_id=1,
+            file_name="dokument.pdf",
+            file_bytes=pdf_bytes,
+        )
+
+    Ved file_path udledes filnavnet automatisk fra stien.
+
+    Ved file_bytes skal file_name angives.
+
+    Returnerer:
+        SharePoints JSON-svar som dictionary.
     """
+    validated_site_name = _require_text(
+        site_name,
+        "site_name",
+    )
 
-    site = get_site(site_name)  # SiteContext (samlet site-info)
+    validated_list_name = _require_text(
+        list_name,
+        "list_name",
+    )
 
-    file_name = os.path.basename(file_path)
+    validated_item_id = _require_text(
+        item_id,
+        "item_id",
+    )
 
-    # Læs filen som bytes (rå fil-data)
-    with open(file_path, "rb") as f:
-        file_bytes = f.read()
+    (
+        validated_file_name,
+        validated_file_bytes,
+    ) = _prepare_attachment(
+        file_path=file_path,
+        file_name=file_name,
+        file_bytes=file_bytes,
+    )
+
+    site = get_site(
+        validated_site_name
+    )
+
+    escaped_list_name = (
+        validated_list_name.replace(
+            "'",
+            "''",
+        )
+    )
+
+    escaped_file_name = (
+        validated_file_name.replace(
+            "'",
+            "''",
+        )
+    )
 
     upload_url = (
-        f"{site.site_url}/_api/web/lists/getbytitle('{list_name}')"
-        f"/items({item_id})/AttachmentFiles/add"
-        f"(FileName='{file_name}')"
+        f"{site.site_url}"
+        f"/_api/web/lists/getbytitle('{escaped_list_name}')"
+        f"/items({validated_item_id})/AttachmentFiles/add"
+        f"(FileName='{escaped_file_name}')"
     )
 
     headers = get_rest_headers()
-    headers["Content-Type"] = "application/octet-stream"
+    headers["Content-Type"] = (
+        "application/octet-stream"
+    )
 
     response = requests.post(
         upload_url,
         headers=headers,
-        data=file_bytes,
-        timeout=60
+        data=validated_file_bytes,
+        timeout=60,
     )
+
     response.raise_for_status()
 
     return response.json()
