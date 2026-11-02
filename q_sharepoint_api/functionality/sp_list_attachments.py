@@ -253,6 +253,204 @@ def list_attachments_for_item(
 
     return response.json()["d"]["results"]
 
+def download_attachment_to_memory(
+    site_name: str,
+    attachment: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Downloader én SharePoint-listeattachment direkte til memory.
+
+    Input:
+        site_name:
+            SharePoint-sitets navn.
+
+        attachment:
+            Én attachment-dictionary fra
+            list_attachments_for_item().
+
+    Returnerer:
+        {
+            "file_name": "samtykke.pdf",
+            "file_bytes": b"...",
+            "content_type": "application/pdf",
+            "size": 12345,
+            "server_relative_url": "...",
+            "attachment": {...},
+        }
+
+    Funktionen gemmer ikke filen på disk.
+    """
+    validated_site_name = _require_text(
+        site_name,
+        "site_name",
+    )
+
+    if not isinstance(attachment, dict):
+        raise TypeError(
+            "attachment skal være en dictionary."
+        )
+
+    file_name = _validate_file_name(
+        attachment.get("FileName")
+    )
+
+    server_relative_url = _require_text(
+        attachment.get("ServerRelativeUrl"),
+        "attachment['ServerRelativeUrl']",
+    )
+
+    site = get_site(
+        validated_site_name
+    )
+
+    escaped_server_relative_url = (
+        server_relative_url.replace(
+            "'",
+            "''",
+        )
+    )
+
+    download_url = (
+        f"{site.site_url}"
+        f"/_api/web"
+        f"/GetFileByServerRelativeUrl("
+        f"'{escaped_server_relative_url}'"
+        f")/$value"
+    )
+
+    response = requests.get(
+        download_url,
+        headers=get_rest_headers(),
+        timeout=60,
+    )
+
+    response.raise_for_status()
+
+    file_bytes = response.content
+
+    if not isinstance(file_bytes, bytes):
+        raise TypeError(
+            "SharePoint returnerede ikke filindholdet som bytes."
+        )
+
+    if not file_bytes:
+        raise ValueError(
+            f"SharePoint-vedhæftningen {file_name!r} var tom."
+        )
+
+    return {
+        "file_name": file_name,
+        "file_bytes": file_bytes,
+        "content_type": str(
+            response.headers.get(
+                "Content-Type",
+                "",
+            )
+        ).strip(),
+        "size": len(file_bytes),
+        "server_relative_url": server_relative_url,
+        "attachment": attachment,
+    }
+
+
+def get_attachments_for_item(
+    site_name: str,
+    list_name: str,
+    item_id: int | str,
+    *,
+    include_file_bytes: bool = False,
+) -> list[dict[str, Any]]:
+    """
+    Henter SharePoint-listeattachments for ét item.
+
+    Med include_file_bytes=False returneres metadata uden
+    filindhold:
+
+        [
+            {
+                "file_name": "samtykke.pdf",
+                "server_relative_url": "...",
+                "attachment": {...},
+            }
+        ]
+
+    Med include_file_bytes=True downloades alle attachments
+    direkte til memory:
+
+        [
+            {
+                "file_name": "samtykke.pdf",
+                "file_bytes": b"...",
+                "content_type": "application/pdf",
+                "size": 12345,
+                "server_relative_url": "...",
+                "attachment": {...},
+            }
+        ]
+
+    Hvis itemet ikke har attachments, returneres en tom liste.
+
+    Funktionen gemmer ikke filer på disk.
+    """
+    if not isinstance(
+        include_file_bytes,
+        bool,
+    ):
+        raise TypeError(
+            "include_file_bytes skal være bool."
+        )
+
+    attachments = list_attachments_for_item(
+        site_name=site_name,
+        list_name=list_name,
+        item_id=item_id,
+    )
+
+    if not isinstance(attachments, list):
+        raise TypeError(
+            "SharePoint returnerede ikke attachments som en liste."
+        )
+
+    results: list[dict[str, Any]] = []
+
+    for attachment in attachments:
+        if not isinstance(attachment, dict):
+            raise TypeError(
+                "SharePoint returnerede en attachment, "
+                "som ikke er en dictionary."
+            )
+
+        if include_file_bytes:
+            result = download_attachment_to_memory(
+                site_name=site_name,
+                attachment=attachment,
+            )
+        else:
+            file_name = _validate_file_name(
+                attachment.get("FileName")
+            )
+
+            server_relative_url = _require_text(
+                attachment.get(
+                    "ServerRelativeUrl"
+                ),
+                (
+                    "attachment"
+                    "['ServerRelativeUrl']"
+                ),
+            )
+
+            result = {
+                "file_name": file_name,
+                "server_relative_url":
+                    server_relative_url,
+                "attachment": attachment,
+            }
+
+        results.append(result)
+
+    return results
+
 
 # ------------------------------------------------------------
 # DOWNLOAD ATTACHMENT
